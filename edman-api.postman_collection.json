@@ -1,0 +1,1193 @@
+{
+  "info": {
+    "name": "Edman API",
+    "description": "Edman volunteer coordination API — full endpoint collection with auto-variable scripts",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "otpSessionToken", "value": "" },
+    { "key": "phone", "value": "01012345678" },
+    { "key": "adminPhone", "value": "01099999999" },
+    { "key": "volunteerId", "value": "" },
+    { "key": "taskId", "value": "" },
+    { "key": "sessionId", "value": "" },
+    { "key": "enrollmentId", "value": "" },
+    { "key": "placeId", "value": "" },
+    { "key": "centerId", "value": "" },
+    { "key": "announcementId", "value": "" },
+    { "key": "ruleId", "value": "" },
+    { "key": "subtaskId", "value": "" },
+    { "key": "uploadKey", "value": "" },
+    { "key": "uploadUrl", "value": "" },
+    { "key": "otpCode", "value": "" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "adminRefreshToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.otpSessionToken) {",
+                  "  pm.collectionVariables.set('otpSessionToken', res.data.otpSessionToken);",
+                  "  console.log('otpSessionToken saved');",
+                  "}",
+                  "pm.test('Login returns otpSessionToken', function () {",
+                  "  pm.expect(res.statusCode).to.eql(201);",
+                  "  pm.expect(res.data).to.have.property('otpSessionToken');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{adminPhone}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.otpSessionToken) {",
+                  "  pm.collectionVariables.set('otpSessionToken', res.data.otpSessionToken);",
+                  "  console.log('otpSessionToken saved (admin login)');",
+                  "}",
+                  "pm.test('Admin login returns otpSessionToken', function () {",
+                  "  pm.expect(res.data).to.have.property('otpSessionToken');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "otp-session-token", "value": "Bearer {{otpSessionToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{otpCode}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["auth", "verify-otp"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data) {",
+                  "  if (res.data.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', res.data.accessToken);",
+                  "    console.log('accessToken saved');",
+                  "  }",
+                  "  if (res.data.refreshToken) {",
+                  "    pm.collectionVariables.set('refreshToken', res.data.refreshToken);",
+                  "    console.log('refreshToken saved');",
+                  "  }",
+                  "}",
+                  "pm.test('Verify OTP returns tokens', function () {",
+                  "  pm.expect(res.data).to.have.property('accessToken');",
+                  "  pm.expect(res.data).to.have.property('refreshToken');",
+                  "  pm.expect(res.data).to.have.property('applicationStatus');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify OTP (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "otp-session-token", "value": "Bearer {{otpSessionToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{otpCode}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/verify-otp", "host": ["{{baseUrl}}"], "path": ["auth", "verify-otp"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data) {",
+                  "  if (res.data.accessToken) {",
+                  "    pm.collectionVariables.set('adminAccessToken', res.data.accessToken);",
+                  "    console.log('adminAccessToken saved');",
+                  "  }",
+                  "  if (res.data.refreshToken) {",
+                  "    pm.collectionVariables.set('adminRefreshToken', res.data.refreshToken);",
+                  "    console.log('adminRefreshToken saved');",
+                  "  }",
+                  "}",
+                  "pm.test('Admin verify OTP returns tokens', function () {",
+                  "  pm.expect(res.data).to.have.property('accessToken');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resend OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "otp-session-token", "value": "Bearer {{otpSessionToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/auth/resend-otp", "host": ["{{baseUrl}}"], "path": ["auth", "resend-otp"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.otpSessionToken) {",
+                  "  pm.collectionVariables.set('otpSessionToken', res.data.otpSessionToken);",
+                  "  console.log('otpSessionToken updated after resend');",
+                  "}",
+                  "pm.test('Resend OTP returns new otpSessionToken', function () {",
+                  "  pm.expect(res.data).to.have.property('otpSessionToken');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "authorization-refresh", "value": "Bearer {{refreshToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/auth/refresh-token", "host": ["{{baseUrl}}"], "path": ["auth", "refresh-token"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data) {",
+                  "  if (res.data.accessToken) {",
+                  "    pm.collectionVariables.set('accessToken', res.data.accessToken);",
+                  "    console.log('accessToken refreshed');",
+                  "  }",
+                  "  if (res.data.refreshToken) {",
+                  "    pm.collectionVariables.set('refreshToken', res.data.refreshToken);",
+                  "    console.log('refreshToken refreshed');",
+                  "  }",
+                  "}",
+                  "pm.test('Refresh returns new tokens', function () {",
+                  "  pm.expect(res.data).to.have.property('accessToken');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Logout succeeds', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Volunteers",
+      "item": [
+        {
+          "name": "Apply",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"أحمد محمد\",\n  \"nationalId\": \"29901011234567\",\n  \"nationalIdPhotoKey\": \"uploads/test/national-id.jpg\",\n  \"governorate\": \"القاهرة\",\n  \"area\": \"الهرم\",\n  \"educationalLevel\": \"بكالوريوس\",\n  \"hasCar\": false\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/volunteers/apply", "host": ["{{baseUrl}}"], "path": ["volunteers", "apply"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('volunteerId', res.data.id);",
+                  "  console.log('volunteerId saved:', res.data.id);",
+                  "}",
+                  "pm.test('Application submitted', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/volunteers/me", "host": ["{{baseUrl}}"], "path": ["volunteers", "me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('volunteerId', res.data.id);",
+                  "}",
+                  "pm.test('Get profile succeeds', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My History",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/volunteers/me/history?page=1&limit=10", "host": ["{{baseUrl}}"], "path": ["volunteers", "me", "history"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "10" }] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get history succeeds', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update FCM Token",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcmToken\": \"test-fcm-token-abc123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/volunteers/me/fcm-token", "host": ["{{baseUrl}}"], "path": ["volunteers", "me", "fcm-token"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('FCM token updated', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin] List Volunteers",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/volunteers?page=1&limit=10", "host": ["{{baseUrl}}"], "path": ["volunteers"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "10" }, { "key": "group", "value": "", "disabled": true }] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('List volunteers succeeds', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin] List Applications",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/volunteers/applications?page=1&limit=10", "host": ["{{baseUrl}}"], "path": ["volunteers", "applications"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "10" }, { "key": "status", "value": "pending", "disabled": true }, { "key": "group", "value": "", "disabled": true }] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('List applications succeeds', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin] Approve Volunteer",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"volunteerGroup\": \"الهرم\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/volunteers/{{volunteerId}}/approve", "host": ["{{baseUrl}}"], "path": ["volunteers", "{{volunteerId}}", "approve"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Volunteer approved', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin] Reject Volunteer",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"صورة البطاقة غير واضحة\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/volunteers/{{volunteerId}}/reject", "host": ["{{baseUrl}}"], "path": ["volunteers", "{{volunteerId}}", "reject"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Volunteer rejected', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin] Change Group",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"volunteerGroup\": \"فيصل\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/volunteers/{{volunteerId}}/group", "host": ["{{baseUrl}}"], "path": ["volunteers", "{{volunteerId}}", "group"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Group changed', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin] Ban Volunteer",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/volunteers/{{volunteerId}}/ban", "host": ["{{baseUrl}}"], "path": ["volunteers", "{{volunteerId}}", "ban"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Volunteer banned', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rules",
+      "item": [
+        {
+          "name": "[Admin] Create/Update Rules",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"١. الالتزام بالمواعيد المحددة\\n٢. ارتداء الزي الرسمي\\n٣. التعامل باحترام مع الجميع\\n٤. عدم مغادرة الموقع بدون إذن\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/rules", "host": ["{{baseUrl}}"], "path": ["rules"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('ruleId', res.data.id);",
+                  "}",
+                  "pm.test('Rules created/updated', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Rules",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rules", "host": ["{{baseUrl}}"], "path": ["rules"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Get rules succeeds', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm Rules",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/rules/confirm", "host": ["{{baseUrl}}"], "path": ["rules", "confirm"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Rules confirmed', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Places",
+      "item": [
+        {
+          "name": "[Admin] Create Place",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"مدرسة طرشوخ الليف\",\n  \"description\": \"مدرسة ابتدائية في منطقة الهرم\",\n  \"latitude\": 29.9765,\n  \"longitude\": 31.1313,\n  \"volunteerGroup\": \"الهرم\",\n  \"placeType\": \"مدرسة\",\n  \"address\": \"شارع الهرم، الجيزة\",\n  \"proximityThresholdMeters\": 300\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/places", "host": ["{{baseUrl}}"], "path": ["places"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('placeId', res.data.id);",
+                  "  console.log('placeId saved:', res.data.id);",
+                  "}",
+                  "pm.test('Place created', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Places",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/places/mine", "host": ["{{baseUrl}}"], "path": ["places", "mine"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "Get Place by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/places/{{placeId}}", "host": ["{{baseUrl}}"], "path": ["places", "{{placeId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "[Admin] Update Place",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"مدرسة ابتدائية محدّثة\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/places/{{placeId}}", "host": ["{{baseUrl}}"], "path": ["places", "{{placeId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Place updated', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "[Admin] Delete Place",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/places/{{placeId}}", "host": ["{{baseUrl}}"], "path": ["places", "{{placeId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Place deleted', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Centers",
+      "item": [
+        {
+          "name": "[Admin] Create Center",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"مركز علاج الإدمان — الهرم\",\n  \"description\": \"مركز تابع لصندوق مكافحة الإدمان\",\n  \"latitude\": 29.9800,\n  \"longitude\": 31.1340,\n  \"volunteerGroup\": \"الهرم\",\n  \"address\": \"شارع الهرم الرئيسي\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/centers", "host": ["{{baseUrl}}"], "path": ["centers"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('centerId', res.data.id);",
+                  "  console.log('centerId saved:', res.data.id);",
+                  "}",
+                  "pm.test('Center created', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Centers",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/centers", "host": ["{{baseUrl}}"], "path": ["centers"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "Get Center by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/centers/{{centerId}}", "host": ["{{baseUrl}}"], "path": ["centers", "{{centerId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "[Admin] Update Center",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"description\": \"وصف محدث\"\n}" },
+            "url": { "raw": "{{baseUrl}}/centers/{{centerId}}", "host": ["{{baseUrl}}"], "path": ["centers", "{{centerId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Center updated', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "[Admin] Delete Center",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/centers/{{centerId}}", "host": ["{{baseUrl}}"], "path": ["centers", "{{centerId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Center deleted', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "[Admin] Create Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"حملة طرشوخ الليف الأولى\",\n  \"description\": \"• هتخش فصل ثانية تالت\\n• هتقابل حد معين\\n• هتقضي من ديلر المدرسة\",\n  \"placeId\": \"{{placeId}}\",\n  \"scheduledDate\": \"2026-03-25\",\n  \"startTime\": \"12:00\",\n  \"endTime\": \"16:00\",\n  \"maxVolunteers\": 10\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/tasks", "host": ["{{baseUrl}}"], "path": ["tasks"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('taskId', res.data.id);",
+                  "  console.log('taskId saved:', res.data.id);",
+                  "}",
+                  "pm.test('Task created', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get My Tasks",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/tasks/mine", "host": ["{{baseUrl}}"], "path": ["tasks", "mine"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "Get Task by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/tasks/{{taskId}}", "host": ["{{baseUrl}}"], "path": ["tasks", "{{taskId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "Enroll in Task",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/tasks/{{taskId}}/enroll", "host": ["{{baseUrl}}"], "path": ["tasks", "{{taskId}}", "enroll"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data) {",
+                  "  if (res.data.sessionId) {",
+                  "    pm.collectionVariables.set('sessionId', res.data.sessionId);",
+                  "    console.log('sessionId saved:', res.data.sessionId);",
+                  "  }",
+                  "  if (res.data.enrollmentId) {",
+                  "    pm.collectionVariables.set('enrollmentId', res.data.enrollmentId);",
+                  "    console.log('enrollmentId saved:', res.data.enrollmentId);",
+                  "  }",
+                  "}",
+                  "pm.test('Enrolled in task', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "[Admin] Update Task",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"حملة محدّثة\"\n}" },
+            "url": { "raw": "{{baseUrl}}/tasks/{{taskId}}", "host": ["{{baseUrl}}"], "path": ["tasks", "{{taskId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Task updated', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "[Admin] Delete Task",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/tasks/{{taskId}}", "host": ["{{baseUrl}}"], "path": ["tasks", "{{taskId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Task deleted', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Sessions",
+      "item": [
+        {
+          "name": "Get Active Session",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/sessions/active", "host": ["{{baseUrl}}"], "path": ["sessions", "active"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('sessionId', res.data.id);",
+                  "  console.log('sessionId saved:', res.data.id);",
+                  "}",
+                  "pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Session History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/sessions/history?page=1&limit=10", "host": ["{{baseUrl}}"], "path": ["sessions", "history"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "10" }] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "GPS Ping",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lat\": 29.9765,\n  \"lng\": 31.1313\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/sessions/{{sessionId}}/gps-ping", "host": ["{{baseUrl}}"], "path": ["sessions", "{{sessionId}}", "gps-ping"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('GPS ping logged', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"] } }]
+        },
+        {
+          "name": "Upload Session Photo",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"photoKey\": \"uploads/session-photos/test-photo.jpg\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/sessions/{{sessionId}}/photos", "host": ["{{baseUrl}}"], "path": ["sessions", "{{sessionId}}", "photos"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Photo uploaded', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"] } }]
+        },
+        {
+          "name": "Leave Early",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"ظرف طارئ\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/sessions/{{sessionId}}/leave", "host": ["{{baseUrl}}"], "path": ["sessions", "{{sessionId}}", "leave"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Left early', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"] } }]
+        },
+        {
+          "name": "Submit Feedback",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"تجربة رائعة، شكراً لكم\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/sessions/{{sessionId}}/feedback", "host": ["{{baseUrl}}"], "path": ["sessions", "{{sessionId}}", "feedback"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Feedback submitted', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"] } }]
+        },
+        {
+          "name": "[Admin] List All Sessions",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/sessions?page=1&limit=10", "host": ["{{baseUrl}}"], "path": ["sessions"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "10" }, { "key": "status", "value": "", "disabled": true }, { "key": "group", "value": "", "disabled": true }, { "key": "volunteerId", "value": "", "disabled": true }, { "key": "taskId", "value": "", "disabled": true }] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "[Admin] Abandon Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"مخالفة للقوانين\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/sessions/{{sessionId}}/abandon", "host": ["{{baseUrl}}"], "path": ["sessions", "{{sessionId}}", "abandon"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Session abandoned', () => pm.expect(pm.response.code).to.be.oneOf([200, 201]));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Uploads",
+      "item": [
+        {
+          "name": "Get Presigned URL",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"national-id.jpg\",\n  \"contentType\": \"image/jpeg\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/uploads/presign", "host": ["{{baseUrl}}"], "path": ["uploads", "presign"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data) {",
+                  "  if (res.data.uploadUrl) {",
+                  "    pm.collectionVariables.set('uploadUrl', res.data.uploadUrl);",
+                  "    console.log('uploadUrl saved');",
+                  "  }",
+                  "  if (res.data.key) {",
+                  "    pm.collectionVariables.set('uploadKey', res.data.key);",
+                  "    console.log('uploadKey saved:', res.data.key);",
+                  "  }",
+                  "}",
+                  "pm.test('Presign returns URL and key', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  pm.expect(res.data).to.have.property('uploadUrl');",
+                  "  pm.expect(res.data).to.have.property('key');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Feed",
+      "item": [
+        {
+          "name": "[Admin] Create Announcement",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"تنويه هام لجميع المتطوعين\",\n  \"body\": \"يرجى الالتزام بالمواعيد المحددة للحملات القادمة\",\n  \"targetGroup\": \"الهرم\",\n  \"attachments\": []\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/feed", "host": ["{{baseUrl}}"], "path": ["feed"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data.id) {",
+                  "  pm.collectionVariables.set('announcementId', res.data.id);",
+                  "  console.log('announcementId saved:', res.data.id);",
+                  "}",
+                  "pm.test('Announcement created', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Feed",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/feed?page=1&limit=10", "host": ["{{baseUrl}}"], "path": ["feed"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "10" }] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "[Admin] Delete Announcement",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/feed/{{announcementId}}", "host": ["{{baseUrl}}"], "path": ["feed", "{{announcementId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Announcement deleted', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Performance",
+      "item": [
+        {
+          "name": "Get My Performance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/performance/me", "host": ["{{baseUrl}}"], "path": ["performance", "me"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "[Admin] Leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/performance/leaderboard?sortBy=hours&order=desc&page=1&limit=10", "host": ["{{baseUrl}}"], "path": ["performance", "leaderboard"], "query": [{ "key": "sortBy", "value": "hours" }, { "key": "order", "value": "desc" }, { "key": "page", "value": "1" }, { "key": "limit", "value": "10" }, { "key": "group", "value": "", "disabled": true }] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "[Admin] Volunteer Performance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/performance/volunteers/{{volunteerId}}", "host": ["{{baseUrl}}"], "path": ["performance", "volunteers", "{{volunteerId}}"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        },
+        {
+          "name": "[Admin] Group Performance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/performance/groups", "host": ["{{baseUrl}}"], "path": ["performance", "groups"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Map",
+      "item": [
+        {
+          "name": "[Admin] Get Map Context",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/map/context", "host": ["{{baseUrl}}"], "path": ["map", "context"] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Chatbot",
+      "item": [
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"ما هي أعراض الإدمان؟\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/chatbot/message", "host": ["{{baseUrl}}"], "path": ["chatbot", "message"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "pm.test('Chatbot replies', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "  pm.expect(res.data).to.have.property('reply');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Chat History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/chatbot/history?page=1&limit=20", "host": ["{{baseUrl}}"], "path": ["chatbot", "history"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }] }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('Status 200', () => pm.expect(pm.response.code).to.eql(200));"] } }]
+        }
+      ]
+    }
+  ]
+}

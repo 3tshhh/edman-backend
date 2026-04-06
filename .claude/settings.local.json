@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm i:*)",
+      "Bash(cd:*)",
+      "Bash(npx tsc:*)",
+      "Bash(xargs grep:*)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npm uninstall:*)"
+    ]
+  }
+}
