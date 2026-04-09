@@ -13,7 +13,7 @@ export class SessionPhoto {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => Session)
+  @ManyToOne(() => Session, { onDelete: 'CASCADE' })
   @JoinColumn()
   session!: Session;
 

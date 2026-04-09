@@ -14,7 +14,7 @@ import { LeaveSessionDto } from './dto/leave-session.dto.js';
 import { SessionPhotoDto } from './dto/session-photo.dto.js';
 import { SessionFeedbackDto } from './dto/session-feedback.dto.js';
 import { QuerySessionsDto } from './dto/query-sessions.dto.js';
-import { Auth, CurrentUser } from '../../common/decorators/index.js';
+import { AdminAuth, Auth, CurrentUser } from '../../common/decorators/index.js';
 import { User } from '../user/user.entity.js';
 import { UserRole } from '../../common/constants/enums.js';
 
@@ -24,13 +24,13 @@ export class SessionsController {
   constructor(private readonly sessionsService: SessionsService) {}
 
   @Get('active')
-  @Auth(UserRole.VOLUNTEER, UserRole.ADMIN)
+  @Auth(UserRole.VOLUNTEER)
   findActive(@CurrentUser() user: User) {
     return this.sessionsService.findActive(user.id);
   }
 
   @Get('history')
-  @Auth(UserRole.VOLUNTEER, UserRole.ADMIN)
+  @Auth(UserRole.VOLUNTEER)
   findHistory(
     @CurrentUser() user: User,
     @Query('page') page?: number,
@@ -40,7 +40,7 @@ export class SessionsController {
   }
 
   @Post(':id/gps-ping')
-  @Auth(UserRole.VOLUNTEER, UserRole.ADMIN)
+  @Auth(UserRole.VOLUNTEER)
   gpsPing(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: User,
@@ -50,7 +50,7 @@ export class SessionsController {
   }
 
   @Post(':id/leave')
-  @Auth(UserRole.VOLUNTEER, UserRole.ADMIN)
+  @Auth(UserRole.VOLUNTEER)
   leaveEarly(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: User,
@@ -60,7 +60,7 @@ export class SessionsController {
   }
 
   @Post(':id/photos')
-  @Auth(UserRole.VOLUNTEER, UserRole.ADMIN)
+  @Auth(UserRole.VOLUNTEER)
   addPhoto(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: User,
@@ -70,7 +70,7 @@ export class SessionsController {
   }
 
   @Post(':id/feedback')
-  @Auth(UserRole.VOLUNTEER, UserRole.ADMIN)
+  @Auth(UserRole.VOLUNTEER)
   submitFeedback(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: User,
@@ -80,13 +80,13 @@ export class SessionsController {
   }
 
   @Get()
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   findAll(@Query() query: QuerySessionsDto) {
     return this.sessionsService.findAll(query);
   }
 
   @Post(':id/abandon')
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   abandon(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: LeaveSessionDto,

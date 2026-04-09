@@ -4,12 +4,14 @@ import { IsNull, Repository } from 'typeorm';
 import { Announcement } from './announcement.entity.js';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto.js';
 import { VolunteerGroup } from '../../common/constants/enums.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 @Injectable()
 export class FeedService {
   constructor(
     @InjectRepository(Announcement)
     private readonly announcementRepository: Repository<Announcement>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async findForVolunteer(
@@ -47,7 +49,21 @@ export class FeedService {
       priority: dto.priority ?? null,
       author: { id: authorId } as any,
     });
-    return this.announcementRepository.save(announcement);
+    const saved = await this.announcementRepository.save(announcement);
+
+    // Send FCM push notification to group topic (or all volunteers)
+    await this.notificationsService.sendAnnouncementNotification(
+      saved.targetGroup,
+      saved.title,
+      saved.body,
+      saved.id,
+    );
+
+    return saved;
+  }
+
+  async removeAll(): Promise<void> {
+    await this.announcementRepository.clear();
   }
 
   async remove(id: string): Promise<void> {

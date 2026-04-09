@@ -1,13 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Admin } from './entities/admin.entity.js';
-import { SubAdmin } from './entities/sub-admin.entity.js';
 import { AdminsService } from './admins.service.js';
 import { AdminsController } from './admins.controller.js';
-import { UserModule } from '../user/user.module.js';
 
+@Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([Admin, SubAdmin]), UserModule],
+  imports: [TypeOrmModule.forFeature([Admin])],
   controllers: [AdminsController],
   providers: [AdminsService],
   exports: [AdminsService],

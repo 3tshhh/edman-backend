@@ -4,14 +4,19 @@ import {
   OtpVerificationStrategy,
 } from './otp-verification.strategy.js';
 import { LoginOtpStrategy } from './login-otp.strategy.js';
+import { ChangePhoneOtpStrategy } from './change-phone-otp.strategy.js';
 
 @Injectable()
 export class OtpStrategyResolver {
   private readonly strategies: Record<OtpPurposeType, OtpVerificationStrategy>;
 
-  constructor(private readonly loginStrategy: LoginOtpStrategy) {
+  constructor(
+    private readonly loginStrategy: LoginOtpStrategy,
+    private readonly changePhoneStrategy: ChangePhoneOtpStrategy,
+  ) {
     this.strategies = {
       login: this.loginStrategy,
+      change_phone: this.changePhoneStrategy,
     };
   }
 

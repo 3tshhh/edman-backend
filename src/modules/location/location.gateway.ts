@@ -15,14 +15,15 @@ import { TokenService } from '../../common/services/token.service.js';
 import { UserService } from '../user/user.service.js';
 import { VolunteersService } from '../volunteers/volunteers.service.js';
 import { SessionsService } from '../sessions/sessions.service.js';
-import { UserRole } from '../../common/constants/enums.js';
+import { CampaignStatus, UserRole } from '../../common/constants/enums.js';
 import { isWithinProximity } from '../../common/utils/location.utils.js';
+import { CampaignsService } from '../campaigns/campaigns.service.js';
 
 const LOCATION_CACHE_TTL_MS = 20 * 60 * 1000; // 20 minutes
 
 interface SocketData {
   userId: string;
-  role: UserRole | null;
+  role: 'admin' | UserRole | null;
   volunteerId?: string;
   fullName?: string;
   volunteerGroup?: string;
@@ -44,6 +45,7 @@ export class LocationGateway
     private readonly userService: UserService,
     private readonly volunteersService: VolunteersService,
     private readonly sessionsService: SessionsService,
+    private readonly campaignsService: CampaignsService,
   ) {}
 
   async handleConnection(client: Socket): Promise<void> {
@@ -75,6 +77,19 @@ export class LocationGateway
         return;
       }
 
+      // Admin token (adminId in payload)
+      if (verified.role === 'admin' && verified.adminId) {
+        const socketData: SocketData = {
+          userId: verified.adminId,
+          role: 'admin',
+        };
+        await client.join('admin-live-map');
+        this.socketDataMap.set(client.id, socketData);
+        this.logger.log(`Admin connected: ${client.id}`);
+        return;
+      }
+
+      // Volunteer/User token
       const user = await this.userService.findById(verified.userId);
       if (!user) {
         client.disconnect();
@@ -85,10 +100,6 @@ export class LocationGateway
         userId: user.id,
         role: user.role,
       };
-
-      if (user.role === UserRole.ADMIN || user.role === UserRole.SUB_ADMIN) {
-        await client.join('admin-live-map');
-      }
 
       if (user.role === UserRole.VOLUNTEER) {
         const volunteer = await this.volunteersService.findByUserId(user.id);
@@ -163,7 +174,7 @@ export class LocationGateway
     if (!session) return;
 
     if (session.status === 'waiting_arrival') {
-      const place = session.task.place;
+      const place = session.campaign.place;
       const withinRange = isWithinProximity(
         lat,
         lng,
@@ -183,7 +194,7 @@ export class LocationGateway
           client.emit('session:confirmed', {
             sessionId: confirmed.id,
             startedAt: confirmed.startedAt,
-            taskTitle: session.task.title,
+            campaignTitle: session.campaign.title,
             placeName: place.name,
             message: 'تم تأكيد موقعك — بدأت جلسة التطوع',
           });
@@ -191,10 +202,24 @@ export class LocationGateway
           this.server.to('admin-live-map').emit('admin:session-activated', {
             volunteerId: data.volunteerId,
             sessionId: confirmed.id,
-            taskTitle: session.task.title,
+            campaignTitle: session.campaign.title,
             lat,
             lng,
+            fullName: data.fullName,
+            volunteerGroup: data.volunteerGroup,
           });
+
+          // Auto-transition campaign to IN_PROGRESS
+          const campaign = session.campaign;
+          if (
+            campaign.status === CampaignStatus.OPEN ||
+            campaign.status === CampaignStatus.FULL
+          ) {
+            await this.campaignsService.updateStatus(
+              campaign.id,
+              CampaignStatus.IN_PROGRESS,
+            );
+          }
         } catch (err) {
           this.logger.error(
             `Failed to confirm arrival for session ${session.id}`,

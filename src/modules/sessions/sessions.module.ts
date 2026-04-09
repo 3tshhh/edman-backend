@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Session } from './entities/session.entity.js';
 import { GpsAuditLog } from './entities/gps-audit-log.entity.js';
 import { SessionPhoto } from './entities/session-photo.entity.js';
-import { TaskEnrollment } from '../tasks/entities/task-enrollment.entity.js';
+import { CampaignEnrollment } from '../campaigns/entities/campaign-enrollment.entity.js';
 import { Volunteer } from '../volunteers/volunteer.entity.js';
 import { SessionsService } from './sessions.service.js';
 import { SessionsController } from './sessions.controller.js';
@@ -15,7 +15,7 @@ import { VolunteersModule } from '../volunteers/volunteers.module.js';
       Session,
       GpsAuditLog,
       SessionPhoto,
-      TaskEnrollment,
+      CampaignEnrollment,
       Volunteer,
     ]),
     VolunteersModule,

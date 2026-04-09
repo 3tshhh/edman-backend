@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { User } from '../user/user.entity.js';
+import { Admin } from '../admins/entities/admin.entity.js';
 import { VolunteerGroup } from '../../common/constants/enums.js';
 
 @Entity('announcements')
@@ -14,8 +14,8 @@ export class Announcement {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => User, { eager: true })
-  author!: User;
+  @ManyToOne(() => Admin, { eager: true })
+  author!: Admin;
 
   @Column({ type: 'enum', enum: VolunteerGroup, nullable: true })
   targetGroup!: VolunteerGroup | null;

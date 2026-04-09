@@ -1,10 +1,10 @@
 import {
   BadRequestException,
   ConflictException,
+  forwardRef,
   Inject,
   Injectable,
   NotFoundException,
-  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +15,7 @@ import { RejectVolunteerDto } from './dto/reject-volunteer.dto.js';
 import { ChangeGroupDto } from './dto/change-group.dto.js';
 import { QueryVolunteersDto } from './dto/query-volunteers.dto.js';
 import { UserService } from '../user/user.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import type { SessionsService } from '../sessions/sessions.service.js';
 import { ApplicationStatus, UserRole } from '../../common/constants/enums.js';
 
@@ -26,6 +27,8 @@ export class VolunteersService {
     @InjectRepository(Volunteer)
     private readonly volunteerRepository: Repository<Volunteer>,
     private readonly userService: UserService,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   setSessionsService(sessionsService: SessionsService): void {
@@ -46,7 +49,8 @@ export class VolunteersService {
     if (nationalIdExists) {
       throw new ConflictException('رقم الهوية مستخدم بالفعل');
     }
-
+    console.log(dto.area);
+    
     const volunteer = this.volunteerRepository.create({
       ...dto,
       user: { id: userId },
@@ -62,11 +66,37 @@ export class VolunteersService {
       throw new NotFoundException('لم يتم العثور على ملف المتطوع');
     }
 
-    // TODO: Phase 3 — compute totalCompletedTasks and totalVisitedPlaces from sessions
+    let totalCompletedCampaigns = 0;
+    let totalVisitedPlaces = 0;
+
+    if (this.sessionsService) {
+      const { data: sessions } =
+        await this.sessionsService.findSessionsForVolunteer(
+          volunteer.id,
+          1,
+          1000,
+        );
+
+      const campaignIds = new Set<string>();
+      const placeIds = new Set<string>();
+
+      for (const session of sessions) {
+        if (session.campaign) {
+          campaignIds.add(session.campaign.id);
+          if (session.campaign.place) {
+            placeIds.add(session.campaign.place.id);
+          }
+        }
+      }
+
+      totalCompletedCampaigns = campaignIds.size;
+      totalVisitedPlaces = placeIds.size;
+    }
+
     return {
       ...volunteer,
-      totalCompletedTasks: 0,
-      totalVisitedPlaces: 0,
+      totalCompletedCampaigns,
+      totalVisitedPlaces,
     };
   }
 
@@ -137,11 +167,8 @@ export class VolunteersService {
       .createQueryBuilder('volunteer')
       .leftJoinAndSelect('volunteer.user', 'user');
 
-    if (query.status) {
-      qb.andWhere('volunteer.applicationStatus = :status', {
-        status: query.status,
-      });
-    }
+    const status = query.status ?? ApplicationStatus.PENDING;
+    qb.andWhere('volunteer.applicationStatus = :status', { status });
 
     if (query.group) {
       qb.andWhere('volunteer.volunteerGroup = :group', {
@@ -181,8 +208,25 @@ export class VolunteersService {
 
     await this.userService.setRole(volunteer.user.id, UserRole.VOLUNTEER);
 
-    // TODO: Phase 4 — send FCM notification for approval
-    return this.volunteerRepository.save(volunteer);
+    const saved = await this.volunteerRepository.save(volunteer);
+
+    // Send FCM push + in-app notification
+    await this.notificationsService.sendApplicationResult(
+      volunteer.user.id,
+      volunteer.user.fcmToken,
+      'approved',
+      { volunteerGroup: dto.volunteerGroup },
+    );
+
+    // Subscribe volunteer to FCM group topic
+    if (volunteer.user.fcmToken) {
+      await this.notificationsService.subscribeToGroupTopic(
+        volunteer.user.fcmToken,
+        dto.volunteerGroup,
+      );
+    }
+
+    return saved;
   }
 
   async reject(
@@ -205,8 +249,17 @@ export class VolunteersService {
     volunteer.reviewedAt = new Date();
     volunteer.reviewedBy = { id: adminUserId } as any;
 
-    // TODO: Phase 4 — send FCM notification for rejection
-    return this.volunteerRepository.save(volunteer);
+    const saved = await this.volunteerRepository.save(volunteer);
+
+    // Send FCM push + in-app notification
+    await this.notificationsService.sendApplicationResult(
+      volunteer.user.id,
+      volunteer.user.fcmToken,
+      'rejected',
+      { reason: dto.reason },
+    );
+
+    return saved;
   }
 
   async changeGroup(
@@ -226,6 +279,15 @@ export class VolunteersService {
     }
 
     volunteer.volunteerGroup = dto.volunteerGroup;
+
+    // Re-subscribe to new group topic
+    if (volunteer.user.fcmToken) {
+      await this.notificationsService.subscribeToGroupTopic(
+        volunteer.user.fcmToken,
+        dto.volunteerGroup,
+      );
+    }
+
     return this.volunteerRepository.save(volunteer);
   }
 
@@ -238,7 +300,16 @@ export class VolunteersService {
     }
 
     volunteer.applicationStatus = ApplicationStatus.BANNED;
-    return this.volunteerRepository.save(volunteer);
+    const saved = await this.volunteerRepository.save(volunteer);
+
+    // Send FCM push + in-app notification
+    await this.notificationsService.sendApplicationResult(
+      volunteer.user.id,
+      volunteer.user.fcmToken,
+      'banned',
+    );
+
+    return saved;
   }
 
   async updateHours(volunteerId: string, hours: number): Promise<void> {

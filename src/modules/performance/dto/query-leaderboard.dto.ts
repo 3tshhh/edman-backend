@@ -4,7 +4,7 @@ import { VolunteerGroup } from '../../../common/constants/enums.js';
 
 export class QueryLeaderboardDto {
   @IsOptional()
-  @IsIn(['hours', 'tasks', 'places', 'consistency', 'achievement'])
+  @IsIn(['hours', 'campaigns', 'places', 'consistency', 'achievement'])
   sortBy?: string;
 
   @IsOptional()

@@ -9,6 +9,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from '../user/user.entity.js';
+import { Admin } from '../admins/entities/admin.entity.js';
 import {
   ApplicationStatus,
   Area,
@@ -22,7 +23,7 @@ export class Volunteer {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @OneToOne(() => User, { cascade: ['insert', 'update'], eager: true })
+  @OneToOne(() => User, { cascade: ['insert'], eager: true })
   @JoinColumn()
   user!: User;
 
@@ -70,8 +71,8 @@ export class Volunteer {
   @Column({ type: 'timestamp', nullable: true })
   reviewedAt!: Date | null;
 
-  @ManyToOne(() => User, { nullable: true })
-  reviewedBy!: User | null;
+  @ManyToOne(() => Admin, { nullable: true })
+  reviewedBy!: Admin | null;
 
   @Column({ type: 'int', default: 0 })
   rulesConfirmedVersion!: number;

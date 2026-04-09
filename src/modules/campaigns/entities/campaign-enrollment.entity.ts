@@ -7,10 +7,10 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Volunteer } from '../../volunteers/volunteer.entity.js';
-import { Task } from './task.entity.js';
+import { Campaign } from './campaign.entity.js';
 
-@Entity('task_enrollments')
-export class TaskEnrollment {
+@Entity('campaign_enrollments')
+export class CampaignEnrollment {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
@@ -18,9 +18,9 @@ export class TaskEnrollment {
   @JoinColumn()
   volunteer!: Volunteer;
 
-  @ManyToOne(() => Task, (task) => task.enrollments)
+  @ManyToOne(() => Campaign, (campaign) => campaign.enrollments, { onDelete: 'CASCADE' })
   @JoinColumn()
-  task!: Task;
+  campaign!: Campaign;
 
   @CreateDateColumn({ type: 'timestamp' })
   enrolledAt!: Date;

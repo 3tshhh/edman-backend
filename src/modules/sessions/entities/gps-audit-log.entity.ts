@@ -14,7 +14,7 @@ export class GpsAuditLog {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => Session)
+  @ManyToOne(() => Session, { onDelete: 'CASCADE' })
   @JoinColumn()
   session!: Session;
 

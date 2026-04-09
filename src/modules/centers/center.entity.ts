@@ -29,6 +29,9 @@ export class Center {
   @Column({ type: 'varchar', length: 500, nullable: true })
   address!: string | null;
 
+  @Column({ type: 'varchar', length: 1000 })
+  addressLink!: string;
+
   @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;
 }

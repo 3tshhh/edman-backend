@@ -7,17 +7,19 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CentersService } from './centers.service.js';
 import { CreateCenterDto } from './dto/create-center.dto.js';
 import { UpdateCenterDto } from './dto/update-center.dto.js';
 import {
-  Auth,
+  AdminAuth,
+  AnyAuth,
   AuthGroup,
   CurrentVolunteer,
 } from '../../common/decorators/index.js';
-import { UserRole } from '../../common/constants/enums.js';
+import { VolunteerGroup } from '../../common/constants/enums.js';
 import type { Volunteer } from '../volunteers/volunteer.entity.js';
 
 @ApiTags('centers')
@@ -25,32 +27,38 @@ import type { Volunteer } from '../volunteers/volunteer.entity.js';
 export class CentersController {
   constructor(private readonly centersService: CentersService) {}
 
-  @Get()
+  @Get('mine')
   @AuthGroup()
-  findByGroup(@CurrentVolunteer() volunteer: Volunteer) {
+  findMine(@CurrentVolunteer() volunteer: Volunteer) {
     return this.centersService.findByGroup(volunteer.volunteerGroup!);
   }
 
+  @Get()
+  @AdminAuth()
+  findAll(@Query('group') group?: VolunteerGroup) {
+    return this.centersService.findAll(group);
+  }
+
   @Get(':id')
-  @Auth(UserRole.VOLUNTEER, UserRole.ADMIN)
+  @AnyAuth()
   findById(@Param('id', ParseUUIDPipe) id: string) {
     return this.centersService.findById(id);
   }
 
   @Post()
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   create(@Body() dto: CreateCenterDto) {
     return this.centersService.create(dto);
   }
 
   @Patch(':id')
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateCenterDto) {
     return this.centersService.update(id, dto);
   }
 
   @Delete(':id')
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.centersService.remove(id);
   }

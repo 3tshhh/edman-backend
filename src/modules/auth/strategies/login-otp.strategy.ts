@@ -7,10 +7,7 @@ import { TokenService } from '../../../common/services/token.service.js';
 import { UserService } from '../../user/user.service.js';
 import { VolunteersService } from '../../volunteers/volunteers.service.js';
 import type { OtpPayload } from '../../../common/types/auth.types.js';
-import {
-  ApplicationStatus,
-  UserRole,
-} from '../../../common/constants/enums.js';
+import { UserRole } from '../../../common/constants/enums.js';
 
 @Injectable()
 export class LoginOtpStrategy extends OtpVerificationStrategy {
@@ -32,13 +29,7 @@ export class LoginOtpStrategy extends OtpVerificationStrategy {
 
     const volunteer = await this.volunteersService.findByUserId(user.id);
 
-    // ADMIN/SUB_ADMIN users get applicationStatus 'approved' so the
-    // volunteer Flutter app lets them through for testing purposes.
-    const applicationStatus =
-      volunteer?.applicationStatus ??
-      (user.role === UserRole.ADMIN || user.role === UserRole.SUB_ADMIN
-        ? ApplicationStatus.APPROVED
-        : null);
+    const applicationStatus = volunteer?.applicationStatus ?? null;
 
     return {
       ...this.tokenService.generateAccessRefreshToken({

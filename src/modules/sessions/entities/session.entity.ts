@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Volunteer } from '../../volunteers/volunteer.entity.js';
-import { Task } from '../../tasks/entities/task.entity.js';
+import { Campaign } from '../../campaigns/entities/campaign.entity.js';
 import { SessionStatus } from '../../../common/constants/enums.js';
 
 @Entity('sessions')
@@ -19,9 +19,9 @@ export class Session {
   @JoinColumn()
   volunteer!: Volunteer;
 
-  @ManyToOne(() => Task)
+  @ManyToOne(() => Campaign, { onDelete: 'CASCADE' })
   @JoinColumn()
-  task!: Task;
+  campaign!: Campaign;
 
   @Column({
     type: 'enum',

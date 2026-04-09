@@ -14,6 +14,7 @@ export class RulesService {
 
   async getLatest(): Promise<Rules | null> {
     return this.rulesRepository.findOne({
+      where: {},
       order: { version: 'DESC' },
     });
   }

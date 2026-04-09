@@ -2,7 +2,6 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   Max,
@@ -22,12 +21,9 @@ export class CreatePlaceDto {
   description?: string;
 
   @IsNotEmpty()
-  @IsNumber()
-  latitude!: number;
-
-  @IsNotEmpty()
-  @IsNumber()
-  longitude!: number;
+  @IsString()
+  @MaxLength(1000)
+  addressLink!: string;
 
   @IsNotEmpty()
   @IsEnum(VolunteerGroup)

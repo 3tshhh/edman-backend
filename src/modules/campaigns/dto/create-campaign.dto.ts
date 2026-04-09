@@ -1,5 +1,6 @@
 import {
   IsDateString,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -9,8 +10,9 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { VolunteerGroup } from '../../../common/constants/enums.js';
 
-export class CreateTaskDto {
+export class CreateCampaignDto {
   @IsNotEmpty()
   @IsString()
   @MaxLength(300)
@@ -23,6 +25,10 @@ export class CreateTaskDto {
   @IsNotEmpty()
   @IsUUID()
   placeId!: string;
+
+  @IsNotEmpty()
+  @IsEnum(VolunteerGroup)
+  volunteerGroup!: VolunteerGroup;
 
   @IsNotEmpty()
   @IsDateString()

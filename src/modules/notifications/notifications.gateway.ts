@@ -4,7 +4,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Logger } from '@nestjs/common';
+import { forwardRef, Inject, Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { TokenService } from '../../common/services/token.service.js';
 import { UserService } from '../user/user.service.js';
@@ -23,6 +23,7 @@ export class NotificationsGateway
   constructor(
     private readonly tokenService: TokenService,
     private readonly userService: UserService,
+    @Inject(forwardRef(() => VolunteersService))
     private readonly volunteersService: VolunteersService,
   ) {}
 
@@ -55,13 +56,20 @@ export class NotificationsGateway
         return;
       }
 
+      // Admin token — admins don't need notification rooms
+      if (verified.role === 'admin' && verified.adminId) {
+        client.data = { userId: verified.adminId, role: 'admin' };
+        this.logger.log(`Admin notifications client connected: ${verified.adminId}`);
+        return;
+      }
+
+      // Volunteer/User token
       const user = await this.userService.findById(verified.userId);
       if (!user) {
         client.disconnect();
         return;
       }
 
-      // Volunteers join group rooms
       if (user.role === UserRole.VOLUNTEER) {
         const volunteer = await this.volunteersService.findByUserId(user.id);
         if (volunteer?.volunteerGroup) {

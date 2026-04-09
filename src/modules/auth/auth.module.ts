@@ -5,11 +5,12 @@ import { OtpModule } from '../otp/otp.module.js';
 import { UserModule } from '../user/user.module.js';
 import { VolunteersModule } from '../volunteers/volunteers.module.js';
 import { LoginOtpStrategy } from './strategies/login-otp.strategy.js';
+import { ChangePhoneOtpStrategy } from './strategies/change-phone-otp.strategy.js';
 import { OtpStrategyResolver } from './strategies/otp-strategy.resolver.js';
 
 @Module({
   imports: [OtpModule, UserModule, VolunteersModule],
   controllers: [AuthController],
-  providers: [AuthService, OtpStrategyResolver, LoginOtpStrategy],
+  providers: [AuthService, OtpStrategyResolver, LoginOtpStrategy, ChangePhoneOtpStrategy],
 })
 export class AuthModule {}

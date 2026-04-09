@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { User } from '../user/user.entity.js';
+import { Admin } from '../admins/entities/admin.entity.js';
 
 @Entity('rules')
 export class Rules {
@@ -22,7 +22,7 @@ export class Rules {
   @UpdateDateColumn({ type: 'timestamp' })
   updatedAt!: Date;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Admin)
   @JoinColumn()
-  updatedBy!: User;
+  updatedBy!: Admin;
 }

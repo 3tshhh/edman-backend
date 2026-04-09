@@ -12,7 +12,7 @@ export class QuerySessionsDto {
 
   @IsOptional()
   @IsUUID()
-  taskId?: string;
+  campaignId?: string;
 
   @IsOptional()
   @IsEnum(SessionStatus)

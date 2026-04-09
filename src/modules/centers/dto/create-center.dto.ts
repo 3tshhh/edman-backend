@@ -1,7 +1,6 @@
 import {
   IsEnum,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -19,12 +18,9 @@ export class CreateCenterDto {
   description?: string;
 
   @IsNotEmpty()
-  @IsNumber()
-  latitude!: number;
-
-  @IsNotEmpty()
-  @IsNumber()
-  longitude!: number;
+  @IsString()
+  @MaxLength(1000)
+  addressLink!: string;
 
   @IsNotEmpty()
   @IsEnum(VolunteerGroup)

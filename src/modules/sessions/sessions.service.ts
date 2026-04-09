@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -8,19 +9,44 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Cron } from '@nestjs/schedule';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import { Session } from './entities/session.entity.js';
 import { GpsAuditLog } from './entities/gps-audit-log.entity.js';
 import { SessionPhoto } from './entities/session-photo.entity.js';
-import { TaskEnrollment } from '../tasks/entities/task-enrollment.entity.js';
+import { CampaignEnrollment } from '../campaigns/entities/campaign-enrollment.entity.js';
 import { Volunteer } from '../volunteers/volunteer.entity.js';
 import { VolunteersService } from '../volunteers/volunteers.service.js';
-import { SessionStatus } from '../../common/constants/enums.js';
+import { CampaignStatus, SessionStatus } from '../../common/constants/enums.js';
 import { isWithinProximity } from '../../common/utils/location.utils.js';
 import { QuerySessionsDto } from './dto/query-sessions.dto.js';
+import type { CampaignsService } from '../campaigns/campaigns.service.js';
+
+interface GpsLogEntry {
+  lat: number;
+  lng: number;
+  isWithinRange: boolean;
+  isFirstArrival: boolean;
+  timestamp: string;
+}
+
+interface SessionCtx {
+  volunteerId: string;
+  placeLat: number;
+  placeLng: number;
+  proximityThresholdMeters: number;
+}
+
+const SESSION_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
 @Injectable()
 export class SessionsService {
   private readonly logger = new Logger(SessionsService.name);
+  private campaignsService: CampaignsService | null = null;
+
+  setCampaignsService(campaignsService: CampaignsService): void {
+    this.campaignsService = campaignsService;
+  }
 
   constructor(
     @InjectRepository(Session)
@@ -29,11 +55,12 @@ export class SessionsService {
     private readonly gpsAuditLogRepository: Repository<GpsAuditLog>,
     @InjectRepository(SessionPhoto)
     private readonly sessionPhotoRepository: Repository<SessionPhoto>,
-    @InjectRepository(TaskEnrollment)
-    private readonly enrollmentRepository: Repository<TaskEnrollment>,
+    @InjectRepository(CampaignEnrollment)
+    private readonly enrollmentRepository: Repository<CampaignEnrollment>,
     @InjectRepository(Volunteer)
     private readonly volunteerRepository: Repository<Volunteer>,
     private readonly volunteersService: VolunteersService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   async findActive(userId: string): Promise<Session | null> {
@@ -48,7 +75,7 @@ export class SessionsService {
           status: SessionStatus.WAITING_ARRIVAL,
         },
       ],
-      relations: ['task', 'task.place', 'volunteer'],
+      relations: ['campaign', 'campaign.place', 'volunteer'],
     });
   }
 
@@ -69,7 +96,7 @@ export class SessionsService {
           SessionStatus.ABANDONED,
         ]),
       },
-      relations: ['task', 'task.place'],
+      relations: ['campaign', 'campaign.place'],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -90,7 +117,7 @@ export class SessionsService {
       throw new BadRequestException('الجلسة ليست نشطة');
     }
 
-    const place = session.task.place;
+    const place = session.campaign.place;
     const withinRange = isWithinProximity(
       lat,
       lng,
@@ -124,7 +151,7 @@ export class SessionsService {
   ): Promise<Session> {
     const session = await this.sessionRepository.findOne({
       where: { id: sessionId, volunteer: { id: volunteerId } },
-      relations: ['task', 'task.place', 'volunteer'],
+      relations: ['campaign', 'campaign.place', 'volunteer'],
     });
 
     if (!session) {
@@ -134,7 +161,7 @@ export class SessionsService {
       throw new BadRequestException('الجلسة ليست في حالة انتظار الوصول');
     }
 
-    const place = session.task.place;
+    const place = session.campaign.place;
     const withinRange = isWithinProximity(
       coords.lat,
       coords.lng,
@@ -149,19 +176,34 @@ export class SessionsService {
 
     session.status = SessionStatus.ACTIVE;
     session.startedAt = new Date();
-    session.lastLatitude = coords.lat;
-    session.lastLongitude = coords.lng;
-    session.gpsCheckCount += 1;
 
-    const log = this.gpsAuditLogRepository.create({
-      session: { id: sessionId },
-      volunteer: { id: volunteerId },
-      latitude: coords.lat,
-      longitude: coords.lng,
+    // Cache session context for zero-PG GPS pings
+    const ctx: SessionCtx = {
+      volunteerId,
+      placeLat: Number(place.latitude),
+      placeLng: Number(place.longitude),
+      proximityThresholdMeters: place.proximityThresholdMeters,
+    };
+    await this.cacheManager.set(
+      `session:ctx:${sessionId}`,
+      JSON.stringify(ctx),
+      SESSION_CACHE_TTL_MS,
+    );
+
+    // Init GPS log + ping count in Redis
+    const firstEntry: GpsLogEntry = {
+      lat: coords.lat,
+      lng: coords.lng,
       isWithinRange: true,
       isFirstArrival: true,
-    });
-    await this.gpsAuditLogRepository.save(log);
+      timestamp: new Date().toISOString(),
+    };
+    await this.cacheManager.set(
+      `session:gpslog:${sessionId}`,
+      JSON.stringify([firstEntry]),
+      SESSION_CACHE_TTL_MS,
+    );
+    await this.cacheManager.set(`session:count:${sessionId}`, 1, SESSION_CACHE_TTL_MS);
 
     return this.sessionRepository.save(session);
   }
@@ -171,36 +213,36 @@ export class SessionsService {
     volunteerId: string,
     coords: { lat: number; lng: number },
   ): Promise<void> {
-    const session = await this.sessionRepository.findOne({
-      where: { id: sessionId, volunteer: { id: volunteerId } },
-      relations: ['task', 'task.place'],
-    });
+    const rawCtx = await this.cacheManager.get<string>(`session:ctx:${sessionId}`);
+    if (!rawCtx) return; // session not active or ctx expired
 
-    if (!session || session.status !== SessionStatus.ACTIVE) return;
+    const ctx: SessionCtx = JSON.parse(rawCtx);
 
-    const place = session.task.place;
-    const withinRange = isWithinProximity(
+    const isWithinRange = isWithinProximity(
       coords.lat,
       coords.lng,
-      Number(place.latitude),
-      Number(place.longitude),
-      place.proximityThresholdMeters,
+      ctx.placeLat,
+      ctx.placeLng,
+      ctx.proximityThresholdMeters,
     );
 
-    const log = this.gpsAuditLogRepository.create({
-      session: { id: sessionId },
-      volunteer: { id: volunteerId },
-      latitude: coords.lat,
-      longitude: coords.lng,
-      isWithinRange: withinRange,
+    // Append to Redis GPS log
+    const logKey = `session:gpslog:${sessionId}`;
+    const existing = (await this.cacheManager.get<string>(logKey)) ?? '[]';
+    const log: GpsLogEntry[] = JSON.parse(existing);
+    log.push({
+      lat: coords.lat,
+      lng: coords.lng,
+      isWithinRange,
       isFirstArrival: false,
+      timestamp: new Date().toISOString(),
     });
-    await this.gpsAuditLogRepository.save(log);
+    await this.cacheManager.set(logKey, JSON.stringify(log), SESSION_CACHE_TTL_MS);
 
-    session.lastLatitude = coords.lat;
-    session.lastLongitude = coords.lng;
-    session.gpsCheckCount += 1;
-    await this.sessionRepository.save(session);
+    // Increment ping count in Redis
+    const countKey = `session:count:${sessionId}`;
+    const count = (await this.cacheManager.get<number>(countKey)) ?? 0;
+    await this.cacheManager.set(countKey, count + 1, SESSION_CACHE_TTL_MS);
   }
 
   async leaveEarly(
@@ -225,17 +267,20 @@ export class SessionsService {
       ? Math.floor((now.getTime() - session.startedAt.getTime()) / 1000)
       : 0;
 
-    // Mirror to TaskEnrollment
+    await this.flushSessionFromRedis(session);
+
+    // Mirror to CampaignEnrollment
     await this.enrollmentRepository.update(
       {
         volunteer: { id: session.volunteer.id },
-        task: { id: session.task.id },
+        campaign: { id: session.campaign.id },
       },
       { leaveReason: reason, leftAt: now },
     );
 
     const saved = await this.sessionRepository.save(session);
     await this.recalculateHours(session.volunteer.id);
+    await this.checkCampaignCompletion(session.campaign.id);
     return saved;
   }
 
@@ -288,7 +333,7 @@ export class SessionsService {
   async abandon(sessionId: string, reason: string): Promise<Session> {
     const session = await this.sessionRepository.findOne({
       where: { id: sessionId },
-      relations: ['volunteer', 'task'],
+      relations: ['volunteer', 'campaign'],
     });
     if (!session) {
       throw new NotFoundException('الجلسة غير موجودة');
@@ -309,8 +354,11 @@ export class SessionsService {
       ? Math.floor((now.getTime() - session.startedAt.getTime()) / 1000)
       : 0;
 
+    await this.flushSessionFromRedis(session);
+
     const saved = await this.sessionRepository.save(session);
     await this.recalculateHours(session.volunteer.id);
+    await this.checkCampaignCompletion(session.campaign.id);
     return saved;
   }
 
@@ -321,16 +369,18 @@ export class SessionsService {
       .createQueryBuilder('session')
       .leftJoinAndSelect('session.volunteer', 'volunteer')
       .leftJoinAndSelect('volunteer.user', 'user')
-      .leftJoinAndSelect('session.task', 'task')
-      .leftJoinAndSelect('task.place', 'place');
+      .leftJoinAndSelect('session.campaign', 'campaign')
+      .leftJoinAndSelect('campaign.place', 'place');
 
     if (query.volunteerId) {
       qb.andWhere('volunteer.id = :volunteerId', {
         volunteerId: query.volunteerId,
       });
     }
-    if (query.taskId) {
-      qb.andWhere('task.id = :taskId', { taskId: query.taskId });
+    if (query.campaignId) {
+      qb.andWhere('campaign.id = :campaignId', {
+        campaignId: query.campaignId,
+      });
     }
     if (query.status) {
       qb.andWhere('session.status = :status', { status: query.status });
@@ -352,7 +402,7 @@ export class SessionsService {
   async autoComplete(sessionId: string): Promise<void> {
     const session = await this.sessionRepository.findOne({
       where: { id: sessionId },
-      relations: ['volunteer'],
+      relations: ['volunteer', 'campaign'],
     });
     if (!session || session.status !== SessionStatus.ACTIVE) return;
 
@@ -363,8 +413,11 @@ export class SessionsService {
       ? Math.floor((now.getTime() - session.startedAt.getTime()) / 1000)
       : 0;
 
+    await this.flushSessionFromRedis(session);
+
     await this.sessionRepository.save(session);
     await this.recalculateHours(session.volunteer.id);
+    await this.checkCampaignCompletion(session.campaign.id);
   }
 
   @Cron('*/1 * * * *')
@@ -375,10 +428,10 @@ export class SessionsService {
 
     const activeSessions = await this.sessionRepository
       .createQueryBuilder('session')
-      .leftJoinAndSelect('session.task', 'task')
+      .leftJoinAndSelect('session.campaign', 'campaign')
       .where('session.status = :status', { status: SessionStatus.ACTIVE })
       .andWhere(
-        '(task.scheduledDate < :today OR (task.scheduledDate = :today AND task.endTime <= :currentTime))',
+        '(campaign.scheduledDate < :today OR (campaign.scheduledDate = :today AND campaign.endTime <= :currentTime))',
         { today, currentTime },
       )
       .getMany();
@@ -393,11 +446,11 @@ export class SessionsService {
     }
   }
 
-  async hasActiveSessionsForTask(taskId: string): Promise<boolean> {
+  async hasActiveSessionsForCampaign(campaignId: string): Promise<boolean> {
     const count = await this.sessionRepository.count({
       where: [
-        { task: { id: taskId }, status: SessionStatus.ACTIVE },
-        { task: { id: taskId }, status: SessionStatus.WAITING_ARRIVAL },
+        { campaign: { id: campaignId }, status: SessionStatus.ACTIVE },
+        { campaign: { id: campaignId }, status: SessionStatus.WAITING_ARRIVAL },
       ],
     });
     return count > 0;
@@ -406,8 +459,8 @@ export class SessionsService {
   async hasActiveSessionsForPlace(placeId: string): Promise<boolean> {
     const count = await this.sessionRepository
       .createQueryBuilder('session')
-      .leftJoin('session.task', 'task')
-      .where('task.placeId = :placeId', { placeId })
+      .leftJoin('session.campaign', 'campaign')
+      .where('campaign.placeId = :placeId', { placeId })
       .andWhere('session.status IN (:...statuses)', {
         statuses: [SessionStatus.ACTIVE, SessionStatus.WAITING_ARRIVAL],
       })
@@ -430,7 +483,7 @@ export class SessionsService {
           SessionStatus.ABANDONED,
         ]),
       },
-      relations: ['task', 'task.place'],
+      relations: ['campaign', 'campaign.place'],
       order: { createdAt: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -450,8 +503,54 @@ export class SessionsService {
           status: SessionStatus.WAITING_ARRIVAL,
         },
       ],
-      relations: ['task', 'task.place', 'volunteer'],
+      relations: ['campaign', 'campaign.place', 'volunteer'],
     });
+  }
+
+  private async flushSessionFromRedis(session: Session): Promise<void> {
+    const sessionId = session.id;
+    const volunteerId = session.volunteer.id;
+
+    // Flush GPS log from Redis → PG (bulk insert)
+    const logKey = `session:gpslog:${sessionId}`;
+    const rawLog = await this.cacheManager.get<string>(logKey);
+    if (rawLog) {
+      const entries: GpsLogEntry[] = JSON.parse(rawLog);
+      if (entries.length > 0) {
+        const logs = entries.map((e) =>
+          this.gpsAuditLogRepository.create({
+            session: { id: sessionId },
+            volunteer: { id: volunteerId },
+            latitude: e.lat,
+            longitude: e.lng,
+            isWithinRange: e.isWithinRange,
+            isFirstArrival: e.isFirstArrival,
+          }),
+        );
+        await this.gpsAuditLogRepository.save(logs);
+      }
+    }
+
+    // Flush ping count → session.gpsCheckCount
+    const count = await this.cacheManager.get<number>(`session:count:${sessionId}`);
+    if (count !== null && count !== undefined) {
+      session.gpsCheckCount = count;
+    }
+
+    // Flush last known location → session.lastLatitude/lastLongitude
+    const rawLoc = await this.cacheManager.get<string>(`location:${volunteerId}`);
+    if (rawLoc) {
+      const loc = JSON.parse(rawLoc);
+      session.lastLatitude = loc.lat;
+      session.lastLongitude = loc.lng;
+    }
+
+    // Clean up Redis session keys
+    await Promise.all([
+      this.cacheManager.del(`session:ctx:${sessionId}`),
+      this.cacheManager.del(`session:count:${sessionId}`),
+      this.cacheManager.del(logKey),
+    ]);
   }
 
   private async loadSessionForVolunteer(
@@ -465,7 +564,7 @@ export class SessionsService {
 
     const session = await this.sessionRepository.findOne({
       where: { id: sessionId, volunteer: { id: volunteer.id } },
-      relations: ['task', 'task.place', 'volunteer'],
+      relations: ['campaign', 'campaign.place', 'volunteer'],
     });
     if (!session) {
       throw new NotFoundException('الجلسة غير موجودة');
@@ -488,5 +587,17 @@ export class SessionsService {
     await this.volunteerRepository.update(volunteerId, {
       totalVolunteeringHours: Math.round(totalHours * 100) / 100,
     });
+  }
+
+  /** Auto-complete campaign if no active/waiting sessions remain. */
+  private async checkCampaignCompletion(campaignId: string): Promise<void> {
+    if (!this.campaignsService) return;
+    const hasRemaining = await this.hasActiveSessionsForCampaign(campaignId);
+    if (!hasRemaining) {
+      await this.campaignsService.updateStatus(
+        campaignId,
+        CampaignStatus.COMPLETED,
+      );
+    }
   }
 }

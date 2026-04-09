@@ -9,6 +9,7 @@ import { Center } from './center.entity.js';
 import { CreateCenterDto } from './dto/create-center.dto.js';
 import { UpdateCenterDto } from './dto/update-center.dto.js';
 import { VolunteerGroup } from '../../common/constants/enums.js';
+import { extractCoordsFromGoogleMapsLink } from '../../common/utils/google-maps.util.js';
 
 @Injectable()
 export class CentersService {
@@ -19,6 +20,11 @@ export class CentersService {
 
   async findByGroup(volunteerGroup: VolunteerGroup): Promise<Center[]> {
     return this.centerRepository.find({ where: { volunteerGroup } });
+  }
+
+  async findAll(group?: VolunteerGroup): Promise<Center[]> {
+    const where = group ? { volunteerGroup: group } : {};
+    return this.centerRepository.find({ where, order: { createdAt: 'DESC' } });
   }
 
   async findById(id: string): Promise<Center> {
@@ -37,7 +43,15 @@ export class CentersService {
       throw new ConflictException('يوجد مركز بنفس الاسم');
     }
 
-    const center = this.centerRepository.create(dto);
+    const { latitude, longitude } = extractCoordsFromGoogleMapsLink(
+      dto.addressLink,
+    );
+
+    const center = this.centerRepository.create({
+      ...dto,
+      latitude,
+      longitude,
+    });
     return this.centerRepository.save(center);
   }
 
@@ -53,7 +67,20 @@ export class CentersService {
       }
     }
 
-    Object.assign(center, dto);
+    if (dto.addressLink) {
+      const { latitude, longitude } = extractCoordsFromGoogleMapsLink(
+        dto.addressLink,
+      );
+      center.latitude = latitude;
+      center.longitude = longitude;
+      center.addressLink = dto.addressLink;
+    }
+
+    if (dto.name !== undefined) center.name = dto.name;
+    if (dto.description !== undefined) center.description = dto.description ?? null;
+    if (dto.volunteerGroup !== undefined) center.volunteerGroup = dto.volunteerGroup;
+    if (dto.address !== undefined) center.address = dto.address ?? null;
+
     return this.centerRepository.save(center);
   }
 

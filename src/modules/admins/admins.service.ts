@@ -1,113 +1,116 @@
 import {
   ConflictException,
   Injectable,
-  NotFoundException,
   OnModuleInit,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Admin } from './entities/admin.entity.js';
-import { SubAdmin } from './entities/sub-admin.entity.js';
-import { UserService } from '../user/user.service.js';
-import { UserRole, VolunteerGroup } from '../../common/constants/enums.js';
-import { normalizePhone } from '../../common/utils/normalize-phone.util.js';
+import { AdminLoginDto } from './dto/admin-login.dto.js';
+import { AdminRegisterDto } from './dto/admin-register.dto.js';
+import { TokenService } from '../../common/services/token.service.js';
+import {
+  generateHash,
+  compareHash,
+} from '../../common/utils/encryption/hash.utils.js';
 
 @Injectable()
 export class AdminsService implements OnModuleInit {
   constructor(
     @InjectRepository(Admin)
     private readonly adminRepository: Repository<Admin>,
-    @InjectRepository(SubAdmin)
-    private readonly subAdminRepository: Repository<SubAdmin>,
-    private readonly userService: UserService,
     private readonly configService: ConfigService,
+    private readonly tokenService: TokenService,
   ) {}
 
   async onModuleInit(): Promise<void> {
-    const adminPhone = this.configService.get<string>('ADMIN_PHONE');
-    if (!adminPhone) return;
+    const email = this.configService.get<string>('ADMIN_DEFAULT_EMAIL');
+    const password = this.configService.get<string>('ADMIN_DEFAULT_PASSWORD');
+    if (!email || !password) return;
 
     try {
-      const phone = normalizePhone(adminPhone);
-      await this.seedAdmin(phone);
+      await this.seedAdmin(email, password);
     } catch {
-      // Seed failed — admin may already exist or phone is invalid
+      // Seed failed — admin may already exist
     }
   }
 
-  async seedAdmin(phone: string): Promise<void> {
-    let user = await this.userService.findByPhone(phone);
-    if (!user) {
-      user = await this.userService.createUser(phone);
-    }
-
-    const existing = await this.adminRepository.findOne({
-      where: { user: { id: user.id } },
-    });
+  async seedAdmin(email: string, password: string): Promise<void> {
+    const existing = await this.adminRepository.findOne({ where: { email } });
     if (existing) return;
 
-    await this.userService.setRole(user.id, UserRole.ADMIN);
-    await this.userService.markPhoneVerified(user.id);
-
-    const admin = this.adminRepository.create({ user: { id: user.id } as any });
+    const admin = this.adminRepository.create({
+      email,
+      password: generateHash(password),
+      name: 'مدير النظام',
+      nationalId: '00000000000000',
+    });
     await this.adminRepository.save(admin);
   }
 
-  async findAdminByUserId(userId: string): Promise<Admin | null> {
-    return this.adminRepository.findOne({
-      where: { user: { id: userId } },
+  async login(dto: AdminLoginDto) {
+    const admin = await this.adminRepository.findOne({
+      where: { email: dto.email },
     });
-  }
-
-  async findSubAdminByUserId(userId: string): Promise<SubAdmin | null> {
-    return this.subAdminRepository.findOne({
-      where: { user: { id: userId } },
-    });
-  }
-
-  async createSubAdmin(
-    phone: string,
-    assignedGroup: VolunteerGroup,
-  ): Promise<SubAdmin> {
-    const normalized = normalizePhone(phone);
-
-    let user = await this.userService.findByPhone(normalized);
-    if (!user) {
-      user = await this.userService.createUser(normalized);
+    if (!admin) {
+      throw new UnauthorizedException('البريد الإلكتروني أو كلمة المرور غير صحيحة');
     }
 
-    const existing = await this.subAdminRepository.findOne({
-      where: { user: { id: user.id } },
+    const isPasswordValid = compareHash(dto.password, admin.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+    }
+
+    const tokens = this.tokenService.generateAccessRefreshToken({
+      adminId: admin.id,
+      role: 'admin',
+    });
+
+    return {
+      ...tokens,
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        nationalId: admin.nationalId,
+      },
+    };
+  }
+
+  async register(dto: AdminRegisterDto) {
+    const existing = await this.adminRepository.findOne({
+      where: { email: dto.email },
     });
     if (existing) {
-      throw new ConflictException('هذا المستخدم مسجل كمشرف فرعي بالفعل');
+      throw new ConflictException('البريد الإلكتروني مستخدم بالفعل');
     }
 
-    await this.userService.setRole(user.id, UserRole.SUB_ADMIN);
-    await this.userService.markPhoneVerified(user.id);
-
-    const subAdmin = this.subAdminRepository.create({
-      user: { id: user.id } as any,
-      assignedGroup,
+    const existingNationalId = await this.adminRepository.findOne({
+      where: { nationalId: dto.nationalId },
     });
-    return this.subAdminRepository.save(subAdmin);
-  }
-
-  async findAllSubAdmins(): Promise<SubAdmin[]> {
-    return this.subAdminRepository.find();
-  }
-
-  async removeSubAdmin(id: string): Promise<void> {
-    const subAdmin = await this.subAdminRepository.findOne({
-      where: { id },
-    });
-    if (!subAdmin) {
-      throw new NotFoundException('المشرف الفرعي غير موجود');
+    if (existingNationalId) {
+      throw new ConflictException('الرقم القومي مستخدم بالفعل');
     }
 
-    // Reset user role to null
-    await this.userService.setRole(subAdmin.user.id, null as any);
-    await this.subAdminRepository.remove(subAdmin);
+    const admin = this.adminRepository.create({
+      email: dto.email,
+      password: generateHash(dto.password),
+      name: dto.name,
+      nationalId: dto.nationalId,
+    });
+    const saved = await this.adminRepository.save(admin);
+
+    return {
+      id: saved.id,
+      email: saved.email,
+      name: saved.name,
+      nationalId: saved.nationalId,
+    };
+  }
+
+  async findById(adminId: string): Promise<Admin | null> {
+    return this.adminRepository.findOne({ where: { id: adminId } });
   }
 }

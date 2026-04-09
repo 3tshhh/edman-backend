@@ -6,6 +6,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '../guards/auth.guard.js';
+import { AdminAuthGuard } from '../guards/admin-auth.guard.js';
+import { AnyAuthGuard } from '../guards/any-auth.guard.js';
 import { RolesGuard } from '../guards/roles.guard.js';
 import { GroupsGuard } from '../guards/groups.guard.js';
 import { UserRole } from '../constants/enums.js';
@@ -60,5 +62,20 @@ export const CurrentVolunteer = createParamDecorator(
   (data: unknown, ctx: ExecutionContext) => {
     const req = ctx.switchToHttp().getRequest();
     return req.volunteer;
+  },
+);
+
+export function AdminAuth() {
+  return applyDecorators(UseGuards(AdminAuthGuard));
+}
+
+export function AnyAuth() {
+  return applyDecorators(UseGuards(AnyAuthGuard));
+}
+
+export const CurrentAdmin = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext) => {
+    const req = ctx.switchToHttp().getRequest();
+    return req.loggedInAdmin.admin;
   },
 );

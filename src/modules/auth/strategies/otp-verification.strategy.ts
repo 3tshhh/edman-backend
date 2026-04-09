@@ -12,8 +12,8 @@ export interface OtpVerificationResult {
   message: string;
 }
 
-export type OtpPurposeType = 'login';
+export type OtpPurposeType = 'login' | 'change_phone';
 
 export abstract class OtpVerificationStrategy {
-  abstract postVerification(payload: object): Promise<OtpVerificationResult>;
+  abstract postVerification(payload: object): Promise<OtpVerificationResult | { message: string }>;
 }

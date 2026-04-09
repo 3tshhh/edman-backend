@@ -14,11 +14,12 @@ import { PlacesService } from './places.service.js';
 import { CreatePlaceDto } from './dto/create-place.dto.js';
 import { UpdatePlaceDto } from './dto/update-place.dto.js';
 import {
-  Auth,
+  AdminAuth,
+  AnyAuth,
   AuthGroup,
   CurrentVolunteer,
 } from '../../common/decorators/index.js';
-import { UserRole, VolunteerGroup } from '../../common/constants/enums.js';
+import { VolunteerGroup } from '../../common/constants/enums.js';
 import type { Volunteer } from '../volunteers/volunteer.entity.js';
 
 @ApiTags('places')
@@ -33,31 +34,31 @@ export class PlacesController {
   }
 
   @Get()
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   findAll(@Query('group') group?: VolunteerGroup) {
     return this.placesService.findAll(group);
   }
 
   @Get(':id')
-  @Auth(UserRole.VOLUNTEER, UserRole.ADMIN, UserRole.SUB_ADMIN)
+  @AnyAuth()
   findById(@Param('id', ParseUUIDPipe) id: string) {
     return this.placesService.findById(id);
   }
 
   @Post()
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   create(@Body() dto: CreatePlaceDto) {
     return this.placesService.create(dto);
   }
 
   @Patch(':id')
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdatePlaceDto) {
     return this.placesService.update(id, dto);
   }
 
   @Delete(':id')
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.placesService.remove(id);
   }

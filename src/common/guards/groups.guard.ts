@@ -15,12 +15,6 @@ export class GroupsGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredGroups = this.reflector.get<string[]>(
-      'groups',
-      context.getHandler(),
-    );
-    if (!requiredGroups) return true;
-
     const request = context.switchToHttp().getRequest();
     const user = request.loggedInUser?.user;
     if (!user) {
@@ -32,8 +26,18 @@ export class GroupsGuard implements CanActivate {
       throw new ForbiddenException('غير مصرح لك بالوصول');
     }
 
-    // Attach volunteer to request so controllers can read it via @CurrentVolunteer()
+    // Always attach volunteer to request so controllers can read it via @CurrentVolunteer()
     request.volunteer = volunteer;
+
+    // If specific groups are required, enforce them
+    const requiredGroups = this.reflector.get<string[]>(
+      'groups',
+      context.getHandler(),
+    );
+    if (requiredGroups && !requiredGroups.includes(volunteer.volunteerGroup)) {
+      throw new ForbiddenException('غير مصرح لك بالوصول');
+    }
+
     return true;
   }
 }

@@ -16,8 +16,14 @@ import { RejectVolunteerDto } from './dto/reject-volunteer.dto.js';
 import { ChangeGroupDto } from './dto/change-group.dto.js';
 import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto.js';
 import { QueryVolunteersDto } from './dto/query-volunteers.dto.js';
-import { Auth, CurrentUser } from '../../common/decorators/index.js';
+import {
+  Auth,
+  AdminAuth,
+  CurrentAdmin,
+  CurrentUser,
+} from '../../common/decorators/index.js';
 import { User } from '../user/user.entity.js';
+import { Admin } from '../admins/entities/admin.entity.js';
 import { UserRole } from '../../common/constants/enums.js';
 
 @ApiTags('volunteers')
@@ -32,13 +38,13 @@ export class VolunteersController {
   }
 
   @Get('me')
-  @Auth()
+  @Auth(UserRole.VOLUNTEER)
   getMyProfile(@CurrentUser() user: User) {
     return this.volunteersService.getMyProfile(user.id);
   }
 
   @Get('me/history')
-  @Auth(UserRole.VOLUNTEER, UserRole.ADMIN)
+  @Auth(UserRole.VOLUNTEER)
   getMyHistory(
     @CurrentUser() user: User,
     @Query('page') page?: number,
@@ -48,51 +54,51 @@ export class VolunteersController {
   }
 
   @Patch('me/fcm-token')
-  @Auth(UserRole.VOLUNTEER, UserRole.ADMIN)
+  @Auth(UserRole.VOLUNTEER)
   updateFcmToken(@CurrentUser() user: User, @Body() dto: UpdateFcmTokenDto) {
     return this.volunteersService.updateFcmToken(user.id, dto.fcmToken);
   }
 
   @Get()
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   findAll(@Query() query: QueryVolunteersDto) {
     return this.volunteersService.findAll(query);
   }
 
-  @Get(':id')
-  @Auth(UserRole.ADMIN)
-  findById(@Param('id', ParseUUIDPipe) id: string) {
-    return this.volunteersService.findById(id);
-  }
-
   @Get('applications')
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   findApplications(@Query() query: QueryVolunteersDto) {
     return this.volunteersService.findApplications(query);
   }
 
+  @Get(':id')
+  @AdminAuth()
+  findById(@Param('id', ParseUUIDPipe) id: string) {
+    return this.volunteersService.findById(id);
+  }
+
   @Patch(':id/approve')
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   approve(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ApproveVolunteerDto,
-    @CurrentUser() user: User,
+    @CurrentAdmin() admin: Admin,
   ) {
-    return this.volunteersService.approve(id, dto, user.id);
+    return this.volunteersService.approve(id, dto, admin.id);
   }
 
   @Patch(':id/reject')
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   reject(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: RejectVolunteerDto,
-    @CurrentUser() user: User,
+    @CurrentAdmin() admin: Admin,
   ) {
-    return this.volunteersService.reject(id, dto, user.id);
+    return this.volunteersService.reject(id, dto, admin.id);
   }
 
   @Patch(':id/group')
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   changeGroup(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ChangeGroupDto,
@@ -101,7 +107,7 @@ export class VolunteersController {
   }
 
   @Patch(':id/ban')
-  @Auth(UserRole.ADMIN)
+  @AdminAuth()
   ban(@Param('id', ParseUUIDPipe) id: string) {
     return this.volunteersService.ban(id);
   }

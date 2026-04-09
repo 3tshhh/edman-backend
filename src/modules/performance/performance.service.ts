@@ -12,7 +12,7 @@ export interface VolunteerPerformance {
   fullName: string;
   volunteerGroup: VolunteerGroup | null;
   totalVolunteeringHours: number;
-  totalCompletedTasks: number;
+  totalCompletedCampaigns: number;
   totalVisitedPlaces: number;
   consistencyScore: number | null;
   achievementScore: number | null;
@@ -87,9 +87,9 @@ export class PerformanceService {
       let bVal: number;
 
       switch (sortBy) {
-        case 'tasks':
-          aVal = a.totalCompletedTasks;
-          bVal = b.totalCompletedTasks;
+        case 'campaigns':
+          aVal = a.totalCompletedCampaigns;
+          bVal = b.totalCompletedCampaigns;
           break;
         case 'places':
           aVal = a.totalVisitedPlaces;
@@ -208,31 +208,33 @@ export class PerformanceService {
       },
     });
 
-    // Completed tasks count (unique tasks from completed sessions)
-    const completedTasksResult = await this.sessionRepository
+    // Completed campaigns count (unique campaigns from completed sessions)
+    const completedCampaignsResult = await this.sessionRepository
       .createQueryBuilder('session')
-      .leftJoin('session.task', 'task')
+      .leftJoin('session.campaign', 'campaign')
       .where('session.volunteerId = :volunteerId', {
         volunteerId: volunteer.id,
       })
       .andWhere('session.status = :status', {
         status: SessionStatus.COMPLETED,
       })
-      .select('COUNT(DISTINCT task.id)', 'count')
+      .select('COUNT(DISTINCT campaign.id)', 'count')
       .getRawOne();
-    const totalCompletedTasks = Number(completedTasksResult?.count ?? 0);
+    const totalCompletedCampaigns = Number(
+      completedCampaignsResult?.count ?? 0,
+    );
 
     // Unique places visited
     const visitedPlacesResult = await this.sessionRepository
       .createQueryBuilder('session')
-      .leftJoin('session.task', 'task')
+      .leftJoin('session.campaign', 'campaign')
       .where('session.volunteerId = :volunteerId', {
         volunteerId: volunteer.id,
       })
       .andWhere('session.status = :status', {
         status: SessionStatus.COMPLETED,
       })
-      .select('COUNT(DISTINCT task.placeId)', 'count')
+      .select('COUNT(DISTINCT campaign.placeId)', 'count')
       .getRawOne();
     const totalVisitedPlaces = Number(visitedPlacesResult?.count ?? 0);
 
@@ -297,7 +299,7 @@ export class PerformanceService {
       fullName: volunteer.fullName,
       volunteerGroup: volunteer.volunteerGroup,
       totalVolunteeringHours: Number(volunteer.totalVolunteeringHours),
-      totalCompletedTasks,
+      totalCompletedCampaigns,
       totalVisitedPlaces,
       consistencyScore,
       achievementScore,

@@ -40,15 +40,17 @@ export class OtpService {
 
   generateOtpSession(
     payload: Omit<OtpPayload, 'hashedCode' | 'jti' | 'exp'>,
-  ): string {
-    const { hashedCode } = this.generate();
+  ): { otpSessionToken: string; code: string } {
+    const { code, hashedCode } = this.generate();
 
-    return this.tokenService.generateToken(
+    const otpSessionToken = this.tokenService.generateToken(
       { ...payload, hashedCode },
       {
         expiresIn: '5m',
         secret: process.env.JWT_SECRET as string,
       },
     );
+
+    return { otpSessionToken, code };
   }
 }

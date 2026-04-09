@@ -14,9 +14,10 @@ export interface VerifiedToken {
 
 export interface OtpPayload {
   phone: string;
-  purpose: 'login';
+  purpose: 'login' | 'change_phone';
   hashedCode: string;
   jti: string;
   exp: number;
   sub?: object;
+  oldPhone?: string;
 }

@@ -32,6 +32,10 @@ export class UserService {
     await this.userRepository.update(userId, { fcmToken });
   }
 
+  async updatePhone(userId: string, newPhone: string): Promise<void> {
+    await this.userRepository.update(userId, { phone: newPhone });
+  }
+
   async setRole(userId: string, role: UserRole): Promise<void> {
     const user = await this.findById(userId);
     if (!user) throw new NotFoundException('User not found');

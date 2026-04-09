@@ -1,7 +1,6 @@
 export enum UserRole {
   VOLUNTEER = 'volunteer',
   ADMIN = 'admin',
-  SUB_ADMIN = 'sub_admin',
 }
 
 export enum ApplicationStatus {
@@ -24,7 +23,7 @@ export enum SessionStatus {
   ABANDONED = 'abandoned',
 }
 
-export enum TaskStatus {
+export enum CampaignStatus {
   OPEN = 'open',
   FULL = 'full',
   IN_PROGRESS = 'in_progress',
@@ -44,16 +43,11 @@ export enum EducationalLevel {
 }
 
 export enum Governorate {
-  CAIRO = 'القاهرة',
   GIZA = 'الجيزة',
-  ALEXANDRIA = 'الإسكندرية',
 }
 
 export enum Area {
   // Greater Cairo / Giza
   HARAM = 'الهرم',
   FAISAL = 'فيصل',
-  DOKKI = 'الدقي',
-  MOHANDESSIN = 'المهندسين',
-  AGOUZA = 'العجوزة',
 }

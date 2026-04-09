@@ -9,12 +9,12 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Place } from '../../places/place.entity.js';
-import { User } from '../../user/user.entity.js';
-import { TaskStatus, VolunteerGroup } from '../../../common/constants/enums.js';
-import { TaskEnrollment } from './task-enrollment.entity.js';
+import { Admin } from '../../admins/entities/admin.entity.js';
+import { CampaignStatus, VolunteerGroup } from '../../../common/constants/enums.js';
+import { CampaignEnrollment } from './campaign-enrollment.entity.js';
 
-@Entity('tasks')
-export class Task {
+@Entity('campaigns')
+export class Campaign {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
@@ -43,15 +43,15 @@ export class Task {
   @Column({ type: 'int', default: 10 })
   maxVolunteers!: number;
 
-  @Column({ type: 'enum', enum: TaskStatus, default: TaskStatus.OPEN })
-  status!: TaskStatus;
+  @Column({ type: 'enum', enum: CampaignStatus, default: CampaignStatus.OPEN })
+  status!: CampaignStatus;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => Admin)
   @JoinColumn()
-  createdBy!: User;
+  createdBy!: Admin;
 
-  @OneToMany(() => TaskEnrollment, (enrollment) => enrollment.task)
-  enrollments!: TaskEnrollment[];
+  @OneToMany(() => CampaignEnrollment, (enrollment) => enrollment.campaign)
+  enrollments!: CampaignEnrollment[];
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt!: Date;
